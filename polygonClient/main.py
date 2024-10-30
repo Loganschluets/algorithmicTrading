@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pandas as pd
 import requests
 import time
 
@@ -65,28 +66,44 @@ def configure_call(ticker, date):
     return url
 
 def make_api_call(stockName, date, max_retries=10, retry_delay=12):
+
+    #creates directory for stock if not already made
+    if not os.path.isdir('data/' + stockName):
+        Path('data/' + stockName).mkdir(parents=True, exist_ok=True)
+        print(f"created {stockName} directory")
+
+    printDate = date.strftime('%Y-%m-%d')
+    csv_file_name = 'data/'+stockName+'/'+stockName+'_'+printDate+'.csv'
     params = {
         'apiKey': API_KEY,
     }
     retries = 0
     success = False
-    while not success and retries < max_retries:
-        try:
-            response = requests.get(configure_call(ticker= stockName, date=date), params=params)
-            response.raise_for_status()  # Raise an error for bad responses
-            data = response.json()
 
-            printDate = date.strftime('%Y-%m-%d')
 
-            #print(json.dumps(data, indent=4))  # Use indent=4 for readability
-            print("Successfully requested " + stockName + " data for "+printDate)
+    if Path(csv_file_name).exists() == False:
+        fileWriteEligible = True
+    else:
+        if pd.read_csv(csv_file_name).empty == True:
+            fileWriteEligible = True
+        else:
+            fileWriteEligible = False
 
-            csv_file_name = 'data/'+stockName+'/'+stockName+'_'+printDate+'.csv'
-            if not os.path.isdir('data/'+stockName):
-                Path('data/'+stockName).mkdir(parents=True, exist_ok=True)
+    """checks if file doesn't exist OR
+    if it does exist and is empty
+    
+    if either of these conditions are met makes the request
+    otherwise returns false and skips timer"""
+    if fileWriteEligible:
+        while not success and retries < max_retries:
+            try:
+                response = requests.get(configure_call(ticker= stockName, date=date), params=params)
+                response.raise_for_status()  # Raise an error for bad responses
+                data = response.json()
 
-            if not Path(csv_file_name).exists():
-                # Open a file for writing
+                #print(json.dumps(data, indent=4))  # Use indent=4 for readability
+
+
                 with open(csv_file_name, mode='w', newline='') as file:
                     writer = csv.writer(file)
 
@@ -99,41 +116,49 @@ def make_api_call(stockName, date, max_retries=10, retry_delay=12):
                             [result['t'], result['v'], result['vw'], result['o'], result['c'], result['h'], result['l'],
                              result['n']])
 
-                print(f"Data has been written to {csv_file_name}")
-            else:
-                print(f"Data has already been retreived for {csv_file_name}")
+                #Exit the loop after successful retrieval
+                print("Successfully wrote " + stockName + " data for " + printDate)
+                success = True
 
-            success = True  # Exit the loop after successful retrieval
+            except (requests.exceptions.HTTPError, ValueError) as err:
+                retries += 1
+                print(f"Attempt {retries} failed for {stockName} on {date.strftime('%Y-%m-%d')}: {err}")
 
-        except (requests.exceptions.HTTPError, ValueError) as err:
-            retries += 1
-            print(f"Attempt {retries} failed for {stockName} on {date.strftime('%Y-%m-%d')}: {err}")
+                if retries < max_retries:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
 
-            if retries < max_retries:
-                print(f"Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
+                else:
+                    print(f"Failed to retrieve data for {stockName} on {date.strftime('%Y-%m-%d')} after {max_retries} attempts.")
 
-            else:
-                print(f"Failed to retrieve data for {stockName} on {date.strftime('%Y-%m-%d')} after {max_retries} attempts.")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                break
 
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+        return True
 
-            break
+    else:
 
+        print(f"data already written to file: {csv_file_name}")
+        return False
 
 def run_continuous_calls():
 
-    trading_days = get_last_n_trading_days(30)
+    trading_days = get_last_n_trading_days(60)
 
-    trading_days.clear()
-
-    trading_day = (datetime.now() - timedelta(days=1))
-
-    trading_days.append(trading_day)
-    for ticker in tickers:
+    """for ticker in tickers:
         for date in trading_days:
-            make_api_call(ticker, date)
+            makeCall = make_api_call("GOOGL", date)
+
+            if makeCall:
+                time.sleep(12)"""
+
+    for date in trading_days:
+        makeCall = make_api_call("GOOGL", date)
+
+        """checks to see if call actually has to be made. If data was already retrieved then
+        skip call and check next one"""
+        if makeCall:
             time.sleep(12)
 
 def is_valid_date(date_str):
