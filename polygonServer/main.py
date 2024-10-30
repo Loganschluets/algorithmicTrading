@@ -17,20 +17,44 @@ yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
 tickers = ['AAPL','NVDA','SBUX','IBM','TSLA','KO','BA','TMUS','SAVE','GE','T','MSFT']
 
+HOLIDAYS = [
+    # Full market holidays
+    '2024-01-01',
+    '2024-01-15',
+    '2024-02-19',
+    '2024-03-29',
+    '2024-05-27',
+    '2024-06-19',
+    '2024-07-04',
+    '2024-09-02',
+    '2024-11-28',
+    '2024-12-25',
+
+    # Early closures
+    '2024-07-03',
+    '2024-11-29',
+    '2024-12-24',
+]
+
 def configure_call(ticker, time, startDate, endDate):
     url = 'https://api.polygon.io/v2/aggs/ticker/'+ticker+'/range/1/'+time+'/' + yesterday + '/' + today + '?apiKey=RpgkwjK4c_F4MwwPkD8LPoxJEsSTrnFs'
     return url
 
-def get_last_30_trading_days():
+def get_last_n_trading_days(n):
     trading_days = []
-    current_date = datetime.now()
-    current_date -= timedelta(days=1)
-    while len(trading_days) < 30:
-        if current_date.weekday() < 5:
+    current_date = datetime.now() - timedelta(days=1)
+
+    # Convert holidays to datetime objects for comparison
+    holiday_dates = {datetime.strptime(date, '%Y-%m-%d').date() for date in HOLIDAYS}
+
+    while len(trading_days) < n:
+        if current_date.weekday() < 5 and current_date.date() not in holiday_dates:\
             trading_days.append(current_date)
         current_date -= timedelta(days=1)
+
     trading_days.reverse()
     return trading_days
+
 
 # Function to configure API URL
 def configure_call(ticker, date):
@@ -100,7 +124,7 @@ def make_api_call(stockName, date, max_retries=10, retry_delay=12):
 
 def run_continuous_calls():
 
-    trading_days = get_last_30_trading_days()
+    trading_days = get_last_n_trading_days(30)
 
     trading_days.clear()
 
