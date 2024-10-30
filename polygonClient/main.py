@@ -49,7 +49,7 @@ def get_last_n_trading_days(n):
     holiday_dates = {datetime.strptime(date, '%Y-%m-%d').date() for date in HOLIDAYS}
 
     while len(trading_days) < n:
-        if current_date.weekday() < 5 and current_date.date() not in holiday_dates:\
+        if current_date.weekday() < 5 and current_date.date() not in holiday_dates:
             trading_days.append(current_date)
         current_date -= timedelta(days=1)
 
