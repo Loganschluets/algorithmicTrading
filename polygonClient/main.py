@@ -16,7 +16,9 @@ url = 'https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/minute/2023-01-09/2023
 today = datetime.now().strftime('%Y-%m-%d')
 yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
-tickers = ['AAPL','NVDA','SBUX','IBM','TSLA','KO','BA','TMUS','SAVE','GE','T','MSFT']
+tickers = ['IBM','NVDA','SBUX','AAPL','TSLA','KO','BA','TMUS','CVX'
+           'SAVE','GE','T','MSFT','HPQ','HOG','F','V','X','W','C','A',
+          'G','H','J','K','L','INTC','MMM','WOOF','TGT','XOM','BP','SHEL']
 
 HOLIDAYS = [
     # Full market holidays
@@ -45,7 +47,7 @@ def get_last_n_trading_days(n):
     trading_days = []
     current_date = datetime.now() - timedelta(days=1)
 
-    # Convert holidays to datetime objects for comparison
+    # convert holidays to datetime objects for comparison
     holiday_dates = {datetime.strptime(date, '%Y-%m-%d').date() for date in HOLIDAYS}
 
     while len(trading_days) < n:
@@ -58,22 +60,22 @@ def get_last_n_trading_days(n):
 
 
 # Function to configure API URL
-def configure_call(ticker, date):
+def configure_call(ticker, date, multiplier, interval):
 
     date = date.strftime('%Y-%m-%d')
     #date2 = endDate.strftime('%Y-%m-%d')
-    url = f'https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/minute/{date}/{date}?apiKey=RpgkwjK4c_F4MwwPkD8LPoxJEsSTrnFs'
+    url = f'https://api.polygon.io/v2/aggs/ticker/{ticker}/range/{multiplier}/{interval}/{date}/{date}?apiKey=RpgkwjK4c_F4MwwPkD8LPoxJEsSTrnFs'
     return url
 
-def make_api_call(stockName, date, max_retries=10, retry_delay=12):
+def make_api_call(stockName, date, multiplier, interval, max_retries=10, retry_delay=12):
 
     #creates directory for stock if not already made
-    if not os.path.isdir('data/' + stockName):
-        Path('data/' + stockName).mkdir(parents=True, exist_ok=True)
+    if not os.path.isdir(f'data_{multiplier}_{interval}/' + stockName):
+        Path(f'data_{multiplier}_{interval}/' + stockName).mkdir(parents=True, exist_ok=True)
         print(f"created {stockName} directory")
 
     printDate = date.strftime('%Y-%m-%d')
-    csv_file_name = 'data/'+stockName+'/'+stockName+'_'+printDate+'.csv'
+    csv_file_name = f'data_{multiplier}_{interval}/'+stockName+'/'+stockName+'_'+printDate+'.csv'
     params = {
         'apiKey': API_KEY,
     }
@@ -97,12 +99,13 @@ def make_api_call(stockName, date, max_retries=10, retry_delay=12):
     if fileWriteEligible:
         while not success and retries < max_retries:
             try:
-                response = requests.get(configure_call(ticker= stockName, date=date), params=params)
-                response.raise_for_status()  # Raise an error for bad responses
+                response = requests.get(
+                    configure_call(ticker= stockName, date=date, multiplier=multiplier, interval=interval),
+                    params=params)
+                response.raise_for_status()
                 data = response.json()
 
                 #print(json.dumps(data, indent=4))  # Use indent=4 for readability
-
 
                 with open(csv_file_name, mode='w', newline='') as file:
                     writer = csv.writer(file)
@@ -144,22 +147,30 @@ def make_api_call(stockName, date, max_retries=10, retry_delay=12):
 
 def run_continuous_calls():
 
-    trading_days = get_last_n_trading_days(60)
+    """Define days here"""
+    trading_days = get_last_n_trading_days(6)
 
-    """for ticker in tickers:
+    for ticker in tickers:
         for date in trading_days:
-            makeCall = make_api_call("GOOGL", date)
+
+            """CONFIGURE MAIN CALL HERE"""
+            """This line defines data time interval, ticker and date"""
+            makeCall = make_api_call(ticker, date, '30', 'minute')
 
             if makeCall:
-                time.sleep(12)"""
+                time.sleep(12)
 
-    for date in trading_days:
-        makeCall = make_api_call("GOOGL", date)
+    #for date in trading_days:
+
+        """CONFIGURE MAIN CALL HERE"""
+        """This line defines data time interval, ticker and date"""
+        #makeCall = make_api_call("GOOGL", date, '15', 'minute')
 
         """checks to see if call actually has to be made. If data was already retrieved then
         skip call and check next one"""
+        """
         if makeCall:
-            time.sleep(12)
+            time.sleep(12)"""
 
 def is_valid_date(date_str):
     try:
