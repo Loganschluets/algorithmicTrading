@@ -148,14 +148,14 @@ def make_api_call(stockName, date, multiplier, interval, max_retries=10, retry_d
 def run_continuous_calls():
 
     """Define days here"""
-    trading_days = get_last_n_trading_days(6)
+    trading_days = get_last_n_trading_days(200)
 
     for ticker in tickers:
         for date in trading_days:
 
             """CONFIGURE MAIN CALL HERE"""
             """This line defines data time interval, ticker and date"""
-            makeCall = make_api_call(ticker, date, '30', 'minute')
+            makeCall = make_api_call(ticker, date, '15', 'minute')
 
             if makeCall:
                 time.sleep(12)
